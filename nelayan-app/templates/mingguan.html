@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="space-y-10 pb-10">
+
+    <!-- 1. HEADER & INFO LOKASI (CENTERED) -->
+    <div class="flex flex-col items-center text-center space-y-4">
+        <div class="py-4">
+            <h2 class="text-5xl md:text-6xl font-black italic tracking-tighter text-blue-400 uppercase leading-none">
+                ANALISIS<br><span class="text-white">MINGGUAN</span>
+            </h2>
+            <p class="mt-4 text-sm font-bold opacity-50 uppercase tracking-[0.3em] italic">
+                WILAYAH: <span class="text-blue-400 font-black underline">{{ lokasi_aktif }}</span>
+            </p>
+        </div>
+        
+        <!-- Badge Tanggal Terpilih -->
+        <div class="glass px-8 py-2 rounded-full text-[10px] font-black text-blue-300 tracking-[0.4em] uppercase shadow-xl">
+            DATA PREDIKSI: {{ tgl_pilihan }}
+        </div>
+    </div>
+
+    <!-- 2. TAB PILIHAN HARI (SCROLLABLE) -->
+    <div class="flex overflow-x-auto pb-10 gap-6 no-scrollbar px-2">
+        {% for hari in hari_list %}
+        {% set is_today = hari.tgl_str == now.strftime('%Y-%m-%d') %}
+        
+        <a href="/mingguan?lokasi={{ lokasi_aktif }}&tanggal={{ hari.tgl_str }}" 
+           class="flex-shrink-0 min-w-[160px] px-6 py-10 rounded-[45px] glass border transition-all flex flex-col items-center justify-center gap-2
+           {% if hari.tgl_str == tgl_pilihan %}
+                bg-blue-600 border-blue-400 shadow-[0_20px_50px_rgba(37,99,235,0.5)] scale-110 z-10
+           {% else %}
+                border-white/5 opacity-40 hover:opacity-100
+           {% endif %}">
+            
+            <!-- Keterangan Hari -->
+            <p class="text-[11px] font-black uppercase tracking-[0.2em] {% if hari.tgl_str == tgl_pilihan %}text-blue-200{% else %}text-blue-400{% endif %}">
+                {% if is_today %}HARI INI{% else %}{{ hari.nama_hari }}{% endif %}
+            </p>
+            
+            <!-- Angka Tanggal & Nama Bulan -->
+            <div class="text-center leading-tight">
+                <p class="font-black italic text-5xl tracking-tighter uppercase">{{ hari.tgl_tampil }}</p>
+                <p class="font-bold text-xs uppercase opacity-80 mt-1 tracking-widest">{{ hari.bulan_tampil }}</p>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+
+    <!-- 3. LAYOUT GRAFIK & TABEL DATA (GRID) -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+        
+        <!-- BAGIAN GRAFIK -->
+        <div class="glass p-10 rounded-[50px] border border-white/10 shadow-2xl">
+            <div class="flex flex-col items-center mb-8">
+                <p class="text-blue-300 text-[10px] font-bold uppercase tracking-widest italic opacity-60 mb-6">Visualisasi Pergerakan Air</p>
+                
+                <!-- Legend Warna -->
+                <div class="flex justify-center gap-8 text-[10px] uppercase font-black tracking-widest">
+                    <div class="flex items-center gap-3">
+                        <span class="w-3 h-3 rounded-full bg-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.8)]"></span>
+                        <span class="text-blue-300">Pasang</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="w-3 h-3 rounded-full bg-orange-400 shadow-[0_0_15px_rgba(251,146,60,0.8)]"></span>
+                        <span class="text-orange-300">Surut</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Canvas Grafik -->
+            <div class="h-[350px] relative">
+                <canvas id="weeklyChart"></canvas>
+            </div>
+        </div>
+
+        <!-- BAGIAN TABEL DATA -->
+        <div class="glass p-10 rounded-[50px] border border-white/10 shadow-2xl">
+            <p class="text-blue-300 text-[10px] font-bold uppercase tracking-widest mb-8 italic border-b border-white/10 pb-4">
+                Rincian Kejadian: {{ tgl_pilihan }}
+            </p>
+            
+            <div class="space-y-4">
+                {% for event in events %}
+                <div class="bg-white/5 p-6 rounded-[35px] border border-white/5 flex justify-between items-center group hover:bg-blue-600/10 transition-all hover-scale">
+                    <div class="flex items-center gap-6">
+                        <!-- Icon Arah Air -->
+                        <div class="w-14 h-14 rounded-[25px] flex items-center justify-center text-xl 
+                            {% if event.jenis == 'Pasang' %}bg-blue-500/20 text-blue-400 shadow-inner{% else %}bg-orange-500/20 text-orange-400 shadow-inner{% endif %}">
+                            <i class="fas {% if event.jenis == 'Pasang' %}fa-arrow-up{% else %}fa-arrow-down{% endif %}"></i>
+                        </div>
+                        <div>
+                            <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest">{{ event.jenis }}</p>
+                            <p class="text-2xl font-black italic tracking-tighter text-white">{{ event.waktu.strftime('%H:%M') }}</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-3xl font-black text-blue-400 tracking-tighter italic">{{ event.tinggi }}<span class="text-sm font-normal opacity-50 ml-1">m</span></p>
+                    </div>
+                </div>
+                {% else %}
+                <div class="py-20 text-center opacity-30 italic uppercase tracking-widest text-xs">
+                    Data tidak tersedia untuk tanggal ini
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- SCRIPT GRAFIK DINAMIS -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // 1. Definisikan Data Warna berdasarkan jenis Pasang/Surut
+    const eventTypes = [{% for e in events %}"{{ e.jenis }}",{% endfor %}];
+    const pointColors = eventTypes.map(type => type === 'Pasang' ? '#3b82f6' : '#fb923c');
+
+    const ctx = document.getElementById('weeklyChart');
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: {{ labels|safe }},
+            datasets: [{
+                data: {{ values|safe }},
+                borderColor: 'rgba(255, 255, 255, 0.1)',
+                borderWidth: 4,
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                fill: true,
+                tension: 0.4,
+                
+                // Styling Titik Warna Berbeda
+                pointBackgroundColor: pointColors,
+                pointBorderColor: pointColors,
+                pointRadius: 8,
+                pointHoverRadius: 12,
+                pointBorderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { 
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#0f172a',
+                    titleFont: { size: 14, weight: 'bold' },
+                    bodyFont: { size: 13 },
+                    padding: 15,
+                    cornerRadius: 15,
+                    displayColors: true,
+                    callbacks: {
+                        label: function(context) {
+                            const type = eventTypes[context.dataIndex];
+                            return ` ${type}: ${context.parsed.y} meter`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                // Konfigurasi Sumbu X (Waktu)
+                x: { 
+                    title: {
+                        display: true,
+                        text: 'Waktu (Jam)',
+                        color: 'rgba(255, 255, 255, 0.5)',
+                        font: { size: 10, weight: 'bold', italic: true }
+                    },
+                    ticks: { color: 'rgba(255,255,255,0.4)', font: { size: 10, weight: 'bold' } }, 
+                    grid: { display: false } 
+                },
+                // Konfigurasi Sumbu Y (Tinggi)
+                y: { 
+                    title: {
+                        display: true,
+                        text: 'Tinggi Air (m)',
+                        color: 'rgba(255, 255, 255, 0.5)',
+                        font: { size: 10, weight: 'bold', italic: true }
+                    },
+                    ticks: { color: 'rgba(255,255,255,0.4)', font: { size: 10 } }, 
+                    grid: { color: 'rgba(255,255,255,0.05)' } 
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

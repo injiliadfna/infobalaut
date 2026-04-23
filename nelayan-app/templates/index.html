@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block content %}
+
+<!-- STYLE: BACKGROUND DINAMIS -->
+<style>
+    body {
+        background: linear-gradient(rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 0.9)), 
+                    url('{{ lokasi_detail.foto }}');
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+        transition: background 0.8s ease-in-out;
+    }
+</style>
+
+<div class="space-y-10">
+    
+    <!-- 1. PILIH LOKASI & JAM REALTIME (CENTERED) -->
+    <div class="flex flex-col items-center gap-6">
+        <div class="glass p-2 rounded-full flex items-center pr-8 w-fit mx-auto shadow-2xl border-white/20">
+            <div class="bg-blue-600 p-4 rounded-full mr-4 shadow-lg shadow-blue-600/40 animate-pulse">
+                <i class="fas fa-location-dot text-white"></i>
+            </div>
+            <form action="/" method="get">
+                <select name="lokasi" onchange="this.form.submit()" class="bg-transparent border-none text-2xl font-black text-white focus:ring-0 cursor-pointer uppercase tracking-tighter">
+                    {% for kota in daftar_kota %}
+                    <option value="{{ kota }}" class="bg-slate-900" {% if kota == lokasi_aktif %}selected{% endif %}>{{ kota }}</option>
+                    {% endfor %}
+                </select>
+            </form>
+        </div>
+
+        <div class="text-center glass px-8 py-3 rounded-3xl border-blue-500/20 shadow-lg backdrop-blur-md">
+            <p id="realtime-clock" class="text-4xl font-black italic tracking-tighter text-blue-400 leading-none">00:00:00</p>
+            <p class="text-[10px] font-bold opacity-50 uppercase tracking-[0.3em] mt-1 italic text-white">{{ now.strftime('%d %B %Y') }}</p>
+        </div>
+    </div>
+
+    <!-- 2. KARTU STATUS UTAMA (CENTERED) -->
+    <div class="relative overflow-hidden rounded-[50px] shadow-2xl p-12 flex flex-col items-center justify-center text-center min-h-[350px] bg-gradient-to-br {{ warna }} border border-white/10 mx-auto max-w-5xl">
+        <div class="relative z-10 space-y-6">
+            <span class="bg-white/20 px-8 py-2 rounded-full text-xs font-bold uppercase tracking-widest border border-white/20 inline-block italic">Kondisi Saat Ini</span>
+            <h2 class="text-6xl md:text-8xl font-black italic tracking-tighter leading-none uppercase">{{ status }}</h2>
+            
+            <div class="max-w-md mx-auto">
+                <p class="text-lg md:text-xl font-medium leading-relaxed bg-black/30 p-6 rounded-[30px] backdrop-blur-xl border border-white/10 italic text-white">
+                    "{{ tips }}"
+                </p>
+            </div>
+        </div>
+        <div class="absolute inset-0 flex items-center justify-center opacity-10 pointer-events-none text-[200px]">
+            {{ icon }}
+        </div>
+    </div>
+
+    <!-- 3. DETAIL INFORMASI MENDATANG (TINGGI & JAM) -->
+    <div class="grid grid-cols-2 gap-6 max-w-2xl mx-auto w-full px-2">
+        <div class="glass p-8 rounded-[40px] border-white/10 flex flex-col items-center text-center hover-scale shadow-xl backdrop-blur-md text-white">
+            <p class="text-blue-300 text-[10px] font-black uppercase tracking-[0.2em] mb-2 italic opacity-60">Tinggi Air</p>
+            <div class="flex items-end gap-1">
+                <p class="text-5xl font-black italic tracking-tighter">{{ data.tinggi if data else '0.0' }}</p>
+                <p class="text-xl font-bold text-blue-400 mb-1 italic">m</p>
+            </div>
+            <p class="text-[10px] font-black uppercase text-blue-500 mt-2 tracking-widest uppercase italic">{{ data.jenis if data else '-' }} Mendatang</p>
+        </div>
+
+        <div class="glass p-8 rounded-[40px] border-white/10 flex flex-col items-center text-center hover-scale shadow-xl backdrop-blur-md text-white">
+            <p class="text-blue-300 text-[10px] font-black uppercase tracking-[0.2em] mb-2 italic opacity-60">Prediksi Jam</p>
+            <p class="text-5xl font-black italic tracking-tighter">{{ data.waktu.strftime('%H:%M') if data else '--:--' }}</p>
+            <p class="text-[10px] font-black uppercase text-slate-400 mt-2 tracking-widest italic uppercase">Waktu Lokal</p>
+        </div>
+    </div>
+
+    <!-- 4. INSIGHT HARI INI -->
+    <div class="glass rounded-[45px] p-10 border border-white/10 w-full max-w-5xl mx-auto shadow-2xl backdrop-blur-md">
+        <div class="flex items-center justify-center gap-3 mb-10">
+            <div class="w-12 h-12 bg-blue-500/20 rounded-2xl flex items-center justify-center text-blue-400 shadow-inner">
+                <i class="fas fa-lightbulb text-xl"></i>
+            </div>
+            <h3 class="text-2xl font-black italic uppercase tracking-tighter text-white">Insight Hari Ini</h3>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {% for insight in insights %}
+            <div class="bg-white/5 p-6 rounded-[35px] border border-white/5 flex flex-col items-center text-center group hover:bg-white/10 transition-all hover-scale">
+                <p class="text-blue-300 text-[10px] font-black uppercase tracking-[0.2em] mb-2 opacity-60">{{ insight.waktu }}</p>
+                <div class="flex items-center gap-3 mb-2">
+                    <span class="font-black italic text-2xl tracking-tighter {{ insight.color }}">{{ insight.status }}</span>
+                    <span class="text-2xl">{{ insight.icon }}</span>
+                </div>
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-tight italic">{{ insight.desc }}</p>
+            </div>
+            {% else %}
+            <div class="col-span-full text-center py-10 opacity-30 italic tracking-widest uppercase text-xs text-white">
+                Analisis data belum tersedia
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Navigasi Mingguan -->
+    <a href="/mingguan?lokasi={{ lokasi_aktif }}" class="glass p-8 rounded-[40px] border-blue-500/30 flex justify-between items-center group hover:bg-blue-600/20 transition-all shadow-xl hover-scale lg:max-w-2xl mx-auto backdrop-blur-md">
+        <div class="flex items-center space-x-6">
+            <div class="bg-blue-600 p-5 rounded-3xl shadow-lg shadow-blue-600/40">
+                <i class="fas fa-calendar-alt text-2xl text-white"></i>
+            </div>
+            <div class="text-white">
+                <p class="text-xl font-black italic uppercase tracking-tighter">LIHAT JADWAL MINGGUAN</p>
+                <p class="text-xs text-blue-300 font-bold opacity-70 italic uppercase">Cek Prediksi 7 Hari Ke Depan</p>
+            </div>
+        </div>
+        <i class="fas fa-arrow-right text-blue-400 group-hover:translate-x-2 transition-transform text-2xl"></i>
+    </a>
+</div>
+
+<script>
+    function updateClock() {
+        const now = new Date();
+        const options = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
+        document.getElementById('realtime-clock').textContent = now.toLocaleTimeString('id-ID', options);
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+</script>
+{% endblock %}

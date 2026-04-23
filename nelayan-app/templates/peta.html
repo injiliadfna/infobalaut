@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% block content %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+<div class="space-y-6 px-4 md:px-0">
+    <!-- Header Page -->
+    <div class="flex flex-col items-center text-center pt-4">
+        <h2 class="text-4xl font-black italic tracking-tighter text-blue-400 uppercase leading-none">
+            Eksplorasi<br><span class="text-white font-black">Pelabuhan</span>
+        </h2>
+        <p class="text-[10px] font-bold opacity-50 uppercase tracking-[0.3em] mt-2 italic text-white">Pemantauan Titik Lokasi & Koordinat Presisi</p>
+    </div>
+    
+    <!-- Container Peta -->
+    <div class="glass h-[550px] md:h-[650px] rounded-[40px] md:rounded-[50px] border-4 border-white/10 shadow-2xl relative mx-auto max-w-6xl w-full">
+        <div id="map" class="h-full w-full rounded-[38px] md:rounded-[48px] z-10"></div>
+        
+        <!-- Info Floating Box (Kanan Atas) -->
+        <div class="absolute top-6 right-6 z-[1000] hidden md:block">
+            <div class="glass px-6 py-4 rounded-3xl border-white/10 backdrop-blur-xl shadow-2xl">
+                <p class="text-blue-400 text-[9px] font-black uppercase tracking-widest mb-1 italic">Wilayah Terpilih</p>
+                <p class="text-xl font-black text-white italic tracking-tighter uppercase">{{ lokasi_aktif }}</p>
+                <div class="mt-2 pt-2 border-t border-white/10 flex items-center gap-2">
+                    <i class="fas fa-location-crosshairs text-blue-500 text-xs"></i>
+                    <p class="text-[10px] font-bold text-white/60 tracking-tighter">{{ coords.lat }}, {{ coords.lon }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    // 1. Inisialisasi Peta
+    var map = L.map('map', { 
+        zoomControl: false,
+        attributionControl: false 
+    }).setView([{{ coords.lat }}, {{ coords.lon }}], 11);
+
+    // 2. Tile Layer Google Maps (Clean Roadmap)
+    L.tileLayer('https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+        maxZoom: 20,
+        subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+    }).addTo(map);
+
+    // 3. Tambahkan Marker Berwarna Dinamis
+    {% for port in ports %}
+    (function() {
+        var isActive = "{{ port.nama }}" === "{{ lokasi_aktif }}";
+        
+        var customIcon = L.divIcon({
+            className: 'custom-marker',
+            html: `
+                <div class="relative flex items-center justify-center">
+                    <div style="background-color: {{ port.color }};" 
+                         class="w-7 h-7 rounded-full border-[3px] border-white shadow-2xl z-20 transition-all duration-300 hover:scale-125">
+                    </div>
+                    ${isActive ? '<div class="absolute w-12 h-12 bg-white/40 rounded-full animate-ping z-10"></div>' : ''}
+                </div>
+            `,
+            iconSize: [40, 40],
+            iconAnchor: [20, 20]
+        });
+
+        var marker = L.marker([{{ port.lat }}, {{ port.lon }}], { icon: customIcon }).addTo(map);
+
+        // POP-UP DENGAN DETAIL TITIK KOORDINAT
+        var popupContent = `
+            <div class="w-[280px] md:w-[320px] overflow-hidden font-sans bg-white">
+                <div class="relative">
+                    <img src="{{ port.foto }}" class="w-full h-36 object-cover">
+                    <div style="background-color: {{ port.color }};" class="absolute top-3 right-3 px-3 py-1 rounded-lg text-white text-[9px] font-black italic shadow-lg uppercase">
+                        {{ port.status }}
+                    </div>
+                </div>
+                <div class="p-5">
+                    <div class="mb-3">
+                        <h3 class="text-2xl font-black italic text-slate-800 tracking-tighter uppercase leading-none mb-1">
+                            {{ port.nama }}
+                        </h3>
+                        <!-- TITIK KOORDINAT DI BAWAH NAMA -->
+                        <div class="flex items-center gap-2 text-blue-600 opacity-80">
+                            <i class="fas fa-location-crosshairs text-[10px]"></i>
+                            <p class="text-[10px] font-black tracking-widest uppercase italic">
+                                ${"{{ port.lat }}"}, ${"{{ port.lon }}"}
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <p class="text-[11px] text-slate-500 leading-relaxed mb-5 font-medium italic border-l-4 border-blue-500 pl-3">
+                        "${"{{ port.deskripsi }}"}"
+                    </p>
+                    
+                    <div class="grid grid-cols-2 gap-3 mb-5">
+                        <div class="bg-slate-50 p-3 rounded-2xl border border-slate-100 text-center">
+                            <p class="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Tinggi Air</p>
+                            <p class="text-xl font-black text-slate-800 leading-none mt-1">${"{{ port.tinggi }}"}m</p>
+                        </div>
+                        <div class="bg-slate-50 p-3 rounded-2xl border border-slate-100 text-center">
+                            <p class="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Jam Prediksi</p>
+                            <p class="text-xl font-black text-slate-800 leading-none mt-1">${"{{ port.jam }}"}</p>
+                        </div>
+                    </div>
+
+                    <a href="/?lokasi={{ port.nama }}" class="block w-full text-center bg-blue-600 text-white py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-blue-600/30 hover:bg-blue-700 transition-all active:scale-95">
+                        PILIH WILAYAH INI
+                    </a>
+                </div>
+            </div>
+        `;
+
+        marker.bindPopup(popupContent, {
+            maxWidth: 350,
+            minWidth: 280,
+            className: 'modern-popup',
+            autoPan: true,
+            autoPanPadding: [20, 100],
+            closeButton: false,
+            offset: [0, -10]
+        });
+
+        if (isActive) {
+            setTimeout(() => marker.openPopup(), 600);
+        }
+    })();
+    {% endfor %}
+</script>
+
+<style>
+    /* Popup styling */
+    .modern-popup .leaflet-popup-content-wrapper {
+        padding: 0 !important;
+        overflow: hidden;
+        border-radius: 30px !important;
+        background: white !important;
+        box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.5) !important;
+    }
+    
+    .modern-popup .leaflet-popup-content {
+        margin: 0 !important;
+        width: 320px !important;
+    }
+
+    @media (max-width: 768px) {
+        .modern-popup .leaflet-popup-content {
+            width: 280px !important;
+        }
+    }
+
+    .modern-popup .leaflet-popup-tip {
+        background: white !important;
+    }
+
+    .leaflet-container {
+        background: #0f172a !important;
+    }
+    
+    /* Animasi pulse untuk marker aktif */
+    .custom-marker .animate-ping {
+        animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+    }
+    @keyframes ping {
+        75%, 100% { transform: scale(2); opacity: 0; }
+    }
+</style>
+{% endblock %}
